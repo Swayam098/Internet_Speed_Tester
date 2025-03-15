@@ -1,7 +1,6 @@
 import tkinter as tk
 from tkinter import messagebox
 from tkinter import ttk
-
 import speedtest
 import threading
 from ttkbootstrap import Style
@@ -16,6 +15,8 @@ class SpeedTestApp:
         # Initialize speedtest
         try:
             self.st = speedtest.Speedtest()
+            self.st.get_best_server()  # Get the best server immediately
+            self.server_info = self.st.results.server
         except Exception as e:
             messagebox.showerror("Error", f"Initialization failed: {str(e)}")
             self.master.destroy()
@@ -43,20 +44,25 @@ class SpeedTestApp:
         results_frame = ttk.Frame(main_frame)
         results_frame.pack(fill='x', pady=10)
 
+        # Server Info
+        ttk.Label(results_frame, text="Server:", font=('Helvetica', 12)).grid(row=0, column=0, sticky='w', padx=10)
+        self.server_label = ttk.Label(results_frame, text=f"{self.server_info['host']} ({self.server_info['country']})", font=('Helvetica', 12, 'bold'))
+        self.server_label.grid(row=0, column=1, sticky='w', padx=10)
+
         # Ping
-        ttk.Label(results_frame, text="Ping:", font=('Helvetica', 12)).grid(row=0, column=0, sticky='w', padx=10)
+        ttk.Label(results_frame, text="Ping:", font=('Helvetica', 12)).grid(row=1, column=0, sticky='w', padx=10)
         self.ping_label = ttk.Label(results_frame, text="—", font=('Helvetica', 12, 'bold'))
-        self.ping_label.grid(row=0, column=1, sticky='w', padx=10)
+        self.ping_label.grid(row=1, column=1, sticky='w', padx=10)
 
         # Download Speed
-        ttk.Label(results_frame, text="Download:", font=('Helvetica', 12)).grid(row=1, column=0, sticky='w', padx=10)
+        ttk.Label(results_frame, text="Download:", font=('Helvetica', 12)).grid(row=2, column=0, sticky='w', padx=10)
         self.download_label = ttk.Label(results_frame, text="—", font=('Helvetica', 12, 'bold'))
-        self.download_label.grid(row=1, column=1, sticky='w', padx=10)
+        self.download_label.grid(row=2, column=1, sticky='w', padx=10)
 
         # Upload Speed
-        ttk.Label(results_frame, text="Upload:", font=('Helvetica', 12)).grid(row=2, column=0, sticky='w', padx=10)
+        ttk.Label(results_frame, text="Upload:", font=('Helvetica', 12)).grid(row=3, column=0, sticky='w', padx=10)
         self.upload_label = ttk.Label(results_frame, text="—", font=('Helvetica', 12, 'bold'))
-        self.upload_label.grid(row=2, column=1, sticky='w', padx=10)
+        self.upload_label.grid(row=3, column=1, sticky='w', padx=10)
 
         # Progress indicator
         self.progress_label = ttk.Label(main_frame, text="", font=('Helvetica', 10))
@@ -75,11 +81,10 @@ class SpeedTestApp:
 
     def run_speed_test(self):
         try:
-            self.st.get_best_server()
-            self.ping = self.st.results.ping
+            ping = self.st.results.ping  # Get the ping
             download_speed = self.st.download() / 1_000_000  # Convert to Mbps
             upload_speed = self.st.upload() / 1_000_000  # Convert to Mbps
-            self.results = (self.ping, download_speed, upload_speed)
+            self.results = (ping, download_speed, upload_speed)
             self.results_available = True
         except Exception as e:
             self.status_label.config(text=f"Error: {str(e)}")
@@ -100,6 +105,7 @@ class SpeedTestApp:
         self.ping_label.config(text=f"{self.results[0]:.2f} ms")
         self.download_label.config(text=f"{self.results[1]:.2f} Mbps")
         self.upload_label.config(text=f"{self.results[2]:.2f} Mbps")
+
 
 if __name__ == "__main__":
     root = tk.Tk()
