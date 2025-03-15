@@ -6,7 +6,7 @@ Server Selection: Choose from a list of servers available globally.
 Test Results: Displays Ping, Download, and Upload speeds in real-time.
 Simple and Clean UI: Easy-to-use interface built using the tkinter library.
 Cross-Platform Compatibility: Works on Windows, MacOS, and Linux.
-Screenshots
+
 
 Getting Started
 Prerequisites
