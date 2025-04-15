@@ -1,8 +1,7 @@
 import tkinter as tk
 from tkinter import messagebox
 from tkinter import ttk
-import subprocess
-import json
+import speedtest
 import threading
 from ttkbootstrap import Style
 
@@ -67,56 +66,61 @@ class SpeedTestApp:
 
     def get_available_servers(self):
         try:
-            # Fetch server information using Speedtest CLI
-            result = subprocess.run(['speedtest', '-L'], capture_output=True, text=True)
-            if result.returncode == 0:
-                servers_output = result.stdout.splitlines()[2:]  # Skip first two lines of headers
-                if servers_output:  # Check if servers were found
-                    for line in servers_output:
-                        server_id, details = line.split(")", 1)
-                        server_id = server_id.strip() + ")"  # Including the closing parenthesis for proper formatting
-                        self.servers.append((server_id, details.strip()))
-                    self.server_dropdown['values'] = [details for _, details in self.servers]
-                else:
-                    messagebox.showerror("Error", "No servers available. Please check your connection.")
-            else:
-                messagebox.showerror("Error", "Failed to fetch servers. Ensure Speedtest CLI is working.")
+            # Initialize Speedtest CLI object
+            st = speedtest.Speedtest()
+
+            # Get the best server based on ping
+            st.get_best_server()
+
+            # Get the best server's details
+            best_server = st.results.server
+            self.servers.append((best_server['id'], f"{best_server['name']}, {best_server['country']}"))
+
+            if self.servers:
+                # Update dropdown with the best server
+                self.server_dropdown['values'] = [details for _, details in self.servers]
+
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to fetch servers: {str(e)}")
+            messagebox.showerror("Error", f"Failed to fetch server: {str(e)}")
 
     def start_test(self):
-        selected_server_index = self.server_dropdown.current()
+        selected_server_index = self.server_dropdown.current()  # ✅ Get selected server index
         if selected_server_index == -1:
             messagebox.showwarning("Warning", "Please select a server before running the test")
             return
-        
-        selected_server_id = self.servers[selected_server_index][0]  # Get server ID
 
-        # Disable the test button during testing
-        self.test_btn.config(state='disabled')
+        selected_server_id = self.servers[selected_server_index][0]  # ✅ Get selected server ID
+
+        self.test_btn.config(state='disabled')  # ✅ Disable the button while testing
         self.progress_label.config(text="Testing...")
         self.status_label.config(text="")
-        
-        # Run speed test in a separate thread
+
+        # ✅ Run the test in a separate thread to avoid freezing the GUI
         threading.Thread(target=self.run_speed_test, args=(selected_server_id,)).start()
+
+        # ✅ Check for results every 100ms (non-blocking loop using Tkinter's event loop)
+        self.master.after(100, self.check_results)
 
     def run_speed_test(self, server_id):
         try:
-            # Run Speedtest CLI with selected server
-            result = subprocess.run(['speedtest', '--server-id', server_id, '--format=json'], capture_output=True, text=True)
-            if result.returncode == 0:
-                data = json.loads(result.stdout)
-                ping = data['ping']['latency']
-                download_speed = data['download']['bandwidth'] / 1_000_000  # Convert to Mbps
-                upload_speed = data['upload']['bandwidth'] / 1_000_000  # Convert to Mbps
-                self.results = (ping, download_speed, upload_speed)
-                self.results_available = True
-            else:
-                self.status_label.config(text="Error: Speedtest failed")
-                self.progress_label.config(text="")
-                self.test_btn.config(state='normal')
+            # Initialize Speedtest CLI object
+            st = speedtest.Speedtest()
+
+            # Set the server for the speed test
+            st.get_best_server()  # This automatically selects the best server by ping
+            st.get_servers([server_id])  # Select the server by ID (if it's a valid server)
+
+            # Perform the test
+            ping = st.results.ping
+            download_speed = st.download() / 1_000_000  # Convert to Mbps
+            upload_speed = st.upload() / 1_000_000  # Convert to Mbps
+
+            # Store the results
+            self.results = (ping, download_speed, upload_speed)
+            self.results_available = True
+
         except Exception as e:
-            self.status_label.config(text=f"Error: {str(e)}")
+            self.status_label.config(text=f"Error: {str(e)}", foreground='red')
             self.progress_label.config(text="")
             self.test_btn.config(state='normal')
 
